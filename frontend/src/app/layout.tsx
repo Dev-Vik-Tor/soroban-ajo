@@ -5,6 +5,7 @@ import { Providers } from './providers'
 import { AppLayout } from '@/components/AppLayout'
 import { InstallPrompt } from '@/components/InstallPrompt'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
+import { OnboardingFlow } from '@/components/onboarding'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -92,6 +93,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="pattern-overlay gradient-mesh min-h-screen">
           <Providers>
             <AppLayout>{children}</AppLayout>
+            <OnboardingFlow />
             <InstallPrompt />
             <OfflineIndicator />
           </Providers>

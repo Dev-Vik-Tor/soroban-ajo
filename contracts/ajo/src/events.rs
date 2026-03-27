@@ -178,6 +178,7 @@ pub fn emit_reminder_triggered(
     let topics = (symbol_short!("remind"), group_id);
     env.events()
         .publish(topics, (member, reminder_type, deadline));
+}
 /// Emit an event when a group milestone is achieved
 pub fn emit_milestone_achieved(
     env: &Env,

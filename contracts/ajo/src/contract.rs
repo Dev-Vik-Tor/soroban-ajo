@@ -685,21 +685,42 @@ impl AjoContract {
 
         Ok(())
     }
+    // Insurance – automated claim verification & settlement
 
-    /// Check if a group has completed all cycles.
+    /// Automatically verify and settle an insurance claim based on on-chain data.
     ///
-    /// Returns whether the group has completed its full rotation,
-    /// meaning all members have received at least one payout.
+    /// Replaces the manual admin-approval flow with fully automated, trustless
+    
+    pub fn auto_verify_insurance_claim(env: Env, claim_id: u64) -> Result<(), AjoError> {
+        // Honour the global pause flag so this endpoint is blocked during emergencies.
+        pausable::ensure_not_paused(&env)?;
+
+        crate::insurance::auto_process_claim(&env, claim_id)
+    }
+
+    /// Get insurance pool information for a token.
+    ///
+    /// Returns the current balance, total payouts, and pending claims count
+    /// for the insurance pool associated with the given token address.
     ///
     /// # Arguments
-    /// * `env` - The Soroban contract environment
-    /// * `group_id` - The group to check
+    /// * `env`           - The Soroban contract environment
+    /// * `token_address` - Token contract address for the pool to query
     ///
     /// # Returns
-    /// `true` if the group has completed all payouts, `false` otherwise
+    /// `Ok(InsurancePool)` containing pool balance and statistics.
     ///
     /// # Errors
-    /// * `GroupNotFound` - If the group does not exist
+    /// * `PoolNotFound` – no pool exists for the given token
+    pub fn get_insurance_pool_info(
+        env: Env,
+        token_address: Address,
+    ) -> Result<crate::types::InsurancePool, AjoError> {
+        crate::insurance::get_pool_info(&env, &token_address)
+    }
+
+    // Query helpers
+    
     pub fn is_complete(env: Env, group_id: u64) -> Result<bool, AjoError> {
         let group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
         Ok(group.is_complete)
@@ -733,7 +754,7 @@ impl AjoContract {
 
         // Cache frequently accessed values
         let current_time = utils::get_current_timestamp(&env);
-        let member_count = group.members.len();
+        let _member_count = group.members.len();
         let group_id_cached = group.id;
         let current_cycle = group.current_cycle;
 
