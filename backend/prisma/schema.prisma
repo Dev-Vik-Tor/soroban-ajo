@@ -61,6 +61,10 @@ model Goal {
 
   user    User         @relation("UserGoals", fields: [userId], references: [walletAddress], onDelete: Cascade)
   members GoalMember[]
+
+  @@index([userId, status])
+  @@index([isPublic, status])
+  @@index([deadline])
 }
 
 model GoalMember {
@@ -92,6 +96,9 @@ model Group {
   metrics        GroupMetrics?
   multiSigConfig MultiSigConfig?
   chatRoom       ChatRoom?
+
+  @@index([isActive, createdAt(sort: Desc)])
+  @@index([name])
 }
 
 model GroupMember {
@@ -104,6 +111,8 @@ model GroupMember {
   user  User  @relation(fields: [userId], references: [walletAddress])
 
   @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
 }
 
 model Contribution {
