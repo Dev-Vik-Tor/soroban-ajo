@@ -8,8 +8,8 @@ interface BasicInfoStepProps {
   errors: FormErrors
   touched: Record<string, boolean>
   onNext: () => void
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
-  onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+  onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
   groupNameRef?: React.Ref<HTMLInputElement>
 }
 
@@ -72,10 +72,35 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
             value={formData.description}
             onChange={onChange}
             onBlur={onBlur}
-            rows={3}
+            rows={2}
             placeholder="Describe your group's purpose..."
             className={inputCls('description')}
           />
+        }
+      />
+      <FormField
+        id="category"
+        label="Category"
+        touched={touched.category}
+        error={errors.category}
+        input={
+          <select
+            id="category"
+            name="category"
+            value={formData.category || 'All'}
+            onChange={onChange}
+            onBlur={onBlur as any}
+            className={inputCls('category' as any)}
+          >
+            <option value="All">Select a category</option>
+            <option value="Startup">Startup</option>
+            <option value="Education">Education</option>
+            <option value="Real Estate">Real Estate</option>
+            <option value="Emergency Fund">Emergency Fund</option>
+            <option value="Travel">Travel</option>
+            <option value="Festivals">Festivals</option>
+            <option value="Farming">Farming</option>
+          </select>
         }
       />
     </WizardStep>

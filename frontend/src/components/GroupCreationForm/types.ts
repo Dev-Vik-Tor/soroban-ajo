@@ -7,6 +7,7 @@ export interface GroupFormData {
   frequency: 'weekly' | 'monthly'
   duration: number
   invitedMembers: string[]
+  category?: string
 }
 
 export interface FormErrors {

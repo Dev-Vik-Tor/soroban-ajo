@@ -11,6 +11,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'discover', label: 'Discover', icon: '🔍' },
     { id: 'create', label: 'Create Group', icon: '➕' },
     { id: 'detail', label: 'My Groups', icon: '👥' },
     { id: 'analytics', label: 'Analytics', icon: '📈' },

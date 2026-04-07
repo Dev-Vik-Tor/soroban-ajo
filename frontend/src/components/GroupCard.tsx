@@ -30,6 +30,14 @@ interface GroupCardProps {
   onClick?: () => void
   /** If true, renders a placeholder skeleton instead of content */
   isLoading?: boolean
+  /** Group category */
+  category?: string
+  /** If true, the group is bookmarked by the user */
+  isBookmarked?: boolean
+  /** Callback for bookmarking/unbookmarking */
+  onBookmark?: (e: React.MouseEvent) => void
+  /** Callback for sharing the group */
+  onShare?: (e: React.MouseEvent) => void
 }
 
 /**
@@ -50,8 +58,12 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   variant = 'interactive',
   onClick,
   isLoading = false,
+  category,
+  isBookmarked = false,
+  onBookmark,
+  onShare,
 }) => {
-  const statusConfig = {
+  const statusConfig: Record<string, { badge: string; label: string; dot: string; accent: string }> = {
     active: {
       badge: 'badge badge-active',
       label: 'Active',
@@ -72,7 +84,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
     },
   }
 
-  const cardVariants = {
+  const cardVariants: Record<string, string> = {
     default: 'glass-card p-5',
     elevated: 'glass-card glass-card-elevated p-6',
     outlined: 'glass-card border-2 p-5',
@@ -81,11 +93,11 @@ export const GroupCard: React.FC<GroupCardProps> = ({
     spacious: 'glass-card glass-card-elevated p-8',
   }
 
-  const cardClass = cardVariants[variant]
+  const cardClass = cardVariants[variant] || cardVariants.interactive
   const isCompact = variant === 'compact'
   const isSpaciousOrElevated = variant === 'spacious' || variant === 'elevated'
   const memberPercent = Math.round((memberCount / maxMembers) * 100)
-  const config = statusConfig[status]
+  const config = statusConfig[status] || statusConfig.active
 
   // --- SKELETON LOADING STATE ---
   if (isLoading) {
@@ -142,15 +154,56 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 
       {/* Header */}
       <div className={`flex justify-between items-start ${isCompact ? 'mb-3' : 'mb-5'} pt-1`}>
-        <h3
-          className={`font-bold text-surface-900 leading-tight ${isCompact ? 'text-base' : isSpaciousOrElevated ? 'text-xl' : 'text-lg'}`}
-        >
-          {groupName}
-        </h3>
-        <span className={config.badge}>
-          <span className={`inline-block w-1.5 h-1.5 rounded-full ${config.dot}`} />
-          {config.label}
-        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            {category && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">
+                {category}
+              </span>
+            )}
+          </div>
+          <h3
+            className={`font-bold text-surface-900 leading-tight truncate ${isCompact ? 'text-base' : isSpaciousOrElevated ? 'text-xl' : 'text-lg'}`}
+          >
+            {groupName}
+          </h3>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <span className={config.badge}>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${config.dot}`} />
+            {config.label}
+          </span>
+          <div className="flex gap-1">
+            {onShare && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onShare(e)
+                }}
+                className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors"
+                aria-label="Share group"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+            )}
+            {onBookmark && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onBookmark(e)
+                }}
+                className={`p-1.5 rounded-full transition-colors ${isBookmarked ? 'text-amber-500 bg-amber-50' : 'text-surface-400 hover:text-amber-500 hover:bg-amber-50'}`}
+                aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              >
+                <svg className="w-4 h-4" fill={isBookmarked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Body */}

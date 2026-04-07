@@ -16,6 +16,8 @@ export interface Group {
   frequency?: 'weekly' | 'monthly'
   duration?: number
   invitedMembers?: string[]
+  category?: string
+  isBookmarked?: boolean
 }
 
 export interface Member {
