@@ -1,7 +1,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { createModuleLogger } from '../utils/logger'
 
 const DATA_FILE = path.join(__dirname, '../../analytics-data.json')
+const logger = createModuleLogger('AnalyticsService')
 
 interface StoredData {
   events: any[]
@@ -20,11 +22,19 @@ function saveData(data: StoredData) {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
   } catch (err) {
-    console.error('[AnalyticsService] Failed to save data:', err)
+    logger.error('Failed to save analytics data', { error: err, file: DATA_FILE })
   }
 }
 
 export const analyticsService = {
+  /**
+   * Persists an analytics event to the local data file.
+   * Efficiently maintains a maximum of 10,000 recent events.
+   * 
+   * @param type - The category of the event (e.g., 'error', 'metric', 'user_action')
+   * @param data - Arbitrary structured data associated with the event
+   * @returns Promise resolving when the event is successfully saved
+   */
   async saveEvent(type: string, data: any): Promise<void> {
     const stored = loadData()
     stored.events.push({ type, ...data, savedAt: Date.now() })
@@ -34,6 +44,12 @@ export const analyticsService = {
     saveData(stored)
   },
 
+  /**
+   * Calculates comprehensive statistics from the recorded analytics events.
+   * Includes totals, type breakdowns, category breakdowns, and error analysis.
+   * 
+   * @returns Promise resolving to an object containing calculated statistics and recent events
+   */
   async getStats() {
     const stored = loadData()
     const events = stored.events
@@ -72,6 +88,11 @@ export const analyticsService = {
     }
   },
 
+  /**
+   * Retrieves the 100 most recent metric-type events recorded in the system.
+   * 
+   * @returns Promise resolving to an array of metric events
+   */
   async getMetrics() {
     const stored = loadData()
     return stored.events

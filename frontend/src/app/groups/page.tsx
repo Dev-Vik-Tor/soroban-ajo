@@ -14,7 +14,8 @@ export default function GroupsPage() {
   const { address } = useWallet()
   const { groups: rawGroups, isLoading } = useDashboard(address)
 
-  const { filters, updateFilter, clearFilters, filteredAndSortedGroups } = useGroupFilters(rawGroups);
+  const { filters, updateFilter, clearFilters, filteredAndSortedGroups } =
+    useGroupFilters(rawGroups)
 
   const handleGroupCreated = () => {
     setShowCreateForm(false)
@@ -36,14 +37,24 @@ export default function GroupsPage() {
             {showCreateForm ? (
               <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
                 </svg>
                 View Groups
               </>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
                 Create Group
               </>
@@ -69,18 +80,12 @@ export default function GroupsPage() {
             {filteredAndSortedGroups.length === 0 && !isLoading ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100">
                 <p className="text-gray-500">No groups found matching your criteria.</p>
-                <button
-                  onClick={clearFilters}
-                  className="mt-4 text-blue-600 hover:underline"
-                >
+                <button onClick={clearFilters} className="mt-4 text-blue-600 hover:underline">
                   Clear all filters
                 </button>
               </div>
             ) : (
-              <GroupsList
-                groups={filteredAndSortedGroups}
-                isLoading={isLoading}
-              />
+              <GroupsList groups={filteredAndSortedGroups} isLoading={isLoading} />
             )}
           </div>
         )}

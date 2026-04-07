@@ -98,7 +98,7 @@ export class SocialService {
       },
     });
 
-    return followers.map((f) => ({
+    return followers.map((f: any) => ({
       id: f.id,
       walletAddress: f.follower.walletAddress,
       points: f.follower.gamification?.points || 0,
@@ -142,7 +142,7 @@ export class SocialService {
       },
     });
 
-    return following.map((f) => ({
+    return following.map((f: any) => ({
       id: f.id,
       walletAddress: f.following.walletAddress,
       points: f.following.gamification?.points || 0,

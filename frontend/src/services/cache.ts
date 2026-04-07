@@ -3,11 +3,9 @@
  * 
  * Features:
  * - TTL-based expiration
- * - Cache invalidation strategies
- * - Cache busting
- * - Stale-while-revalidate
- * - Security: Input validation, size limits, sanitization
- * - CI/CD: Metrics, monitoring hooks
+ * - Cache invalidation strategies (tag, pattern, version)
+ * - Stale-while-revalidate pattern
+ * - Memory protection and security sanitization
  */
 
 import { analytics } from './analytics'
@@ -142,7 +140,11 @@ class CacheService {
   }
 
   /**
-   * Get data from cache
+   * Retrieve data from the cache.
+   * Implements "Stale-While-Revalidate" if enabled.
+   * 
+   * @param key - The unique cache key
+   * @returns Cached data of type T, or null if miss/expired
    */
   get<T>(key: string): T | null {
     const sanitizedKey = this.validateKey(key)
@@ -181,7 +183,11 @@ class CacheService {
   }
 
   /**
-   * Set data in cache
+   * Store data in the cache with optional tags and versioning.
+   * 
+   * @param key - The cache key
+   * @param data - Data to cache
+   * @param options - Storage options (TTL, tags, version)
    */
   set<T>(
     key: string,
@@ -253,7 +259,10 @@ class CacheService {
   }
 
   /**
-   * Invalidate multiple entries by tag
+   * Remove specific entries by tag association.
+   * 
+   * @param tag - The tag to invalidate
+   * @returns Number of entries removed
    */
   invalidateByTag(tag: string): number {
     const keys = this.tags.get(tag)
@@ -512,6 +521,11 @@ export const CacheKeys = {
   userGroups: (userId: string) => `user:${userId}:groups`,
   transactions: (groupId: string, cursor?: string, limit?: number) => `group:${groupId}:transactions:${cursor || 'start'}:${limit || 10}`,
   userTransactions: (userId: string) => `user:${userId}:transactions`,
+  // Penalty-related cache keys
+  memberPenaltyRecord: (groupId: string, member: string) => `penalty:${groupId}:member:${member}`,
+  groupPenaltyStats: (groupId: string) => `penalty:${groupId}:stats`,
+  penaltyHistory: (groupId: string, member?: string) => `penalty:${groupId}:history:${member || 'all'}`,
+  userPenaltyRecords: (userId: string) => `penalty:user:${userId}:records`,
 }
 
 /**
@@ -522,4 +536,6 @@ export const CacheTags = {
   group: (groupId: string) => `group:${groupId}`,
   user: (userId: string) => `user:${userId}`,
   transactions: 'transactions',
+  penalties: 'penalties',
+  penalty: (groupId: string) => `penalty:${groupId}`,
 }

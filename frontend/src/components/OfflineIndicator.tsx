@@ -1,18 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { WifiOff, Wifi } from 'lucide-react'
+import { WifiOff, Wifi, Clock } from 'lucide-react'
+import { getPendingActionCount } from '../utils/syncManager'
 
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true)
   const [showNotification, setShowNotification] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
     setIsOnline(navigator.onLine)
+    updatePendingCount()
 
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true)
       setShowNotification(true)
+      await updatePendingCount()
       setTimeout(() => setShowNotification(false), 3000)
     }
 
@@ -30,7 +34,12 @@ export function OfflineIndicator() {
     }
   }, [])
 
-  if (!showNotification) return null
+  const updatePendingCount = async () => {
+    const count = await getPendingActionCount()
+    setPendingCount(count)
+  }
+
+  if (!showNotification && isOnline) return null
 
   return (
     <div
@@ -44,11 +53,20 @@ export function OfflineIndicator() {
         <>
           <Wifi className="w-5 h-5" />
           <span className="font-medium">Back online</span>
+          {pendingCount > 0 && (
+            <span className="text-sm">({pendingCount} actions synced)</span>
+          )}
         </>
       ) : (
         <>
           <WifiOff className="w-5 h-5" />
           <span className="font-medium">You're offline</span>
+          {pendingCount > 0 && (
+            <div className="flex items-center gap-1 ml-2">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">{pendingCount} pending</span>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -21,19 +21,27 @@ export interface ExportRequest {
 }
 
 export class DataExportService {
+  /**
+   * Creates a background job to export complex analytics and system metrics.
+   * Supports CSV, Excel, and PDF formats.
+   * 
+   * @param userId - ID of the administrator or system user requesting the export
+   * @param request - Configuration options including specific metrics and date ranges
+   * @returns Promise resolving to the created DataExport job record
+   */
   async createExportJob(userId: string, request: ExportRequest) {
     const exportJob = await prisma.dataExport.create({
       data: {
         userId,
         exportType: request.format,
         format: request.format,
-        query: request,
+        query: request as any,
         status: 'pending',
       },
     })
 
     // Process export asynchronously
-    this.processExport(exportJob.id, request).catch(error => {
+    this.processExport(exportJob.id, request).catch((error) => {
       logger.error('Export processing failed', { exportId: exportJob.id, error })
     })
 
@@ -48,7 +56,7 @@ export class DataExportService {
         data: { status: 'processing' },
       })
 
-      let data: any = {}
+      const data: any = {}
       let filePath: string
       let fileSize: number
 
@@ -136,9 +144,9 @@ export class DataExportService {
   private async generateCSV(data: any, exportId: string): Promise<string> {
     const fs = await import('fs')
     const path = await import('path')
-    
+
     const filePath = path.join(process.cwd(), 'exports', `${exportId}.csv`)
-    
+
     // Ensure exports directory exists
     if (!fs.existsSync(path.dirname(filePath))) {
       fs.mkdirSync(path.dirname(filePath), { recursive: true })
@@ -150,46 +158,52 @@ export class DataExportService {
     if (data.metrics) {
       csvContent += 'METRICS\n'
       csvContent += 'Category,Metric,Value\n'
-      
+
       const { userMetrics, groupMetrics, financialMetrics } = data.metrics
-      
+
       // User metrics
       Object.entries(userMetrics).forEach(([key, value]) => {
         csvContent += `Users,${key},${value}\n`
       })
-      
+
       // Group metrics
       Object.entries(groupMetrics).forEach(([key, value]) => {
         csvContent += `Groups,${key},${value}\n`
       })
-      
+
       // Financial metrics
       Object.entries(financialMetrics).forEach(([key, value]) => {
         csvContent += `Financial,${key},${value}\n`
       })
-      
+
       csvContent += '\n'
     }
 
     // User metrics CSV
     if (data.userMetrics) {
       csvContent += 'USER METRICS\n'
-      csvContent += 'User ID,Wallet Address,Total Contributed,Total Received,Groups Joined,Retention Rate,Churn Score,LTV,Predicted Churn\n'
-      
+      csvContent +=
+        'User ID,Wallet Address,Total Contributed,Total Received,Groups Joined,Retention Rate,Churn Score,LTV,Predicted Churn\n'
+
       data.userMetrics.forEach((user: any) => {
         csvContent += `${user.id},${user.walletAddress},${user.totalContributed},${user.totalReceived},${user.groupsJoined},${user.retentionRate},${user.churnScore},${user.ltv},${user.predictedChurn}\n`
       })
-      
+
       csvContent += '\n'
     }
 
     // Group metrics CSV
     if (data.groupMetrics) {
       csvContent += 'GROUP METRICS\n'
-      csvContent += 'Group ID,Group Name,Total Contributions,Total Payouts,Member Count,Success Rate,Default Rate,Risk Score,Predicted Success\n'
-      
+      csvContent +=
+        'Group ID,Group Name,Total Contributions,Total Payouts,Member Count,Success Rate,Default Rate,Risk Score,Predicted Success\n'
+
       data.groupMetrics.forEach((group: any) => {
-        csvContent += `${group.id},${group.group?.name || 'N/A'},${group.totalContributions},${group.totalPayouts},${group.memberCount},${group.successRate},${group.defaultRate},${group.riskScore},${group.predictedSuccess}\n`
+        csvContent += `${group.id},${group.group?.name || 'N/A'},${group.totalContributions},${
+          group.totalPayouts
+        },${group.memberCount},${group.successRate},${group.defaultRate},${group.riskScore},${
+          group.predictedSuccess
+        }\n`
       })
     }
 
@@ -200,9 +214,9 @@ export class DataExportService {
   private async generateExcel(data: any, exportId: string): Promise<string> {
     const fs = await import('fs')
     const path = await import('path')
-    
+
     const filePath = path.join(process.cwd(), 'exports', `${exportId}.xlsx`)
-    
+
     // Ensure exports directory exists
     if (!fs.existsSync(path.dirname(filePath))) {
       fs.mkdirSync(path.dirname(filePath), { recursive: true })
@@ -212,24 +226,24 @@ export class DataExportService {
 
     // Metrics sheet
     if (data.metrics) {
-      const metricsData = []
+      const metricsData: any[] = []
       const { userMetrics, groupMetrics, financialMetrics } = data.metrics
-      
+
       Object.entries(userMetrics).forEach(([key, value]) => {
         metricsData.push(['Users', key, value])
       })
-      
+
       Object.entries(groupMetrics).forEach(([key, value]) => {
         metricsData.push(['Groups', key, value])
       })
-      
+
       Object.entries(financialMetrics).forEach(([key, value]) => {
         metricsData.push(['Financial', key, value])
       })
 
       const metricsSheet = XLSX.utils.aoa_to_sheet([
         ['Category', 'Metric', 'Value'],
-        ...metricsData
+        ...metricsData,
       ])
       XLSX.utils.book_append_sheet(workbook, metricsSheet, 'Metrics')
     }
@@ -245,12 +259,22 @@ export class DataExportService {
         user.retentionRate,
         user.churnScore,
         user.ltv,
-        user.predictedChurn
+        user.predictedChurn,
       ])
 
       const userSheet = XLSX.utils.aoa_to_sheet([
-        ['ID', 'Wallet Address', 'Total Contributed', 'Total Received', 'Groups Joined', 'Retention Rate', 'Churn Score', 'LTV', 'Predicted Churn'],
-        ...userData
+        [
+          'ID',
+          'Wallet Address',
+          'Total Contributed',
+          'Total Received',
+          'Groups Joined',
+          'Retention Rate',
+          'Churn Score',
+          'LTV',
+          'Predicted Churn',
+        ],
+        ...userData,
       ])
       XLSX.utils.book_append_sheet(workbook, userSheet, 'User Metrics')
     }
@@ -266,12 +290,22 @@ export class DataExportService {
         group.successRate,
         group.defaultRate,
         group.riskScore,
-        group.predictedSuccess
+        group.predictedSuccess,
       ])
 
       const groupSheet = XLSX.utils.aoa_to_sheet([
-        ['ID', 'Group Name', 'Total Contributions', 'Total Payouts', 'Member Count', 'Success Rate', 'Default Rate', 'Risk Score', 'Predicted Success'],
-        ...groupData
+        [
+          'ID',
+          'Group Name',
+          'Total Contributions',
+          'Total Payouts',
+          'Member Count',
+          'Success Rate',
+          'Default Rate',
+          'Risk Score',
+          'Predicted Success',
+        ],
+        ...groupData,
       ])
       XLSX.utils.book_append_sheet(workbook, groupSheet, 'Group Metrics')
     }
@@ -279,17 +313,17 @@ export class DataExportService {
     // Predictions sheet
     if (data.predictions) {
       const { churnPrediction, groupSuccessPrediction } = data.predictions
-      
+
       // Churn predictions
       const churnData = churnPrediction.map((pred: any) => [
         pred.userId,
         pred.churnProbability,
-        pred.riskFactors.join(', ')
+        pred.riskFactors.join(', '),
       ])
 
       const churnSheet = XLSX.utils.aoa_to_sheet([
         ['User ID', 'Churn Probability', 'Risk Factors'],
-        ...churnData
+        ...churnData,
       ])
       XLSX.utils.book_append_sheet(workbook, churnSheet, 'Churn Predictions')
 
@@ -297,12 +331,12 @@ export class DataExportService {
       const groupSuccessData = groupSuccessPrediction.map((pred: any) => [
         pred.groupId,
         pred.successProbability,
-        pred.riskFactors.join(', ')
+        pred.riskFactors.join(', '),
       ])
 
       const groupSuccessSheet = XLSX.utils.aoa_to_sheet([
         ['Group ID', 'Success Probability', 'Risk Factors'],
-        ...groupSuccessData
+        ...groupSuccessData,
       ])
       XLSX.utils.book_append_sheet(workbook, groupSuccessSheet, 'Group Success Predictions')
     }
@@ -314,12 +348,12 @@ export class DataExportService {
         stage.totalUsers,
         stage.conversionRate,
         stage.dropoffRate,
-        stage.avgTimeInStage
+        stage.avgTimeInStage,
       ])
 
       const funnelSheet = XLSX.utils.aoa_to_sheet([
         ['Stage', 'Total Users', 'Conversion Rate', 'Dropoff Rate', 'Avg Time in Stage'],
-        ...funnelData
+        ...funnelData,
       ])
       XLSX.utils.book_append_sheet(workbook, funnelSheet, 'Funnel Analysis')
     }
@@ -331,9 +365,9 @@ export class DataExportService {
   private async generatePDF(data: any, exportId: string): Promise<string> {
     const fs = await import('fs')
     const path = await import('path')
-    
+
     const filePath = path.join(process.cwd(), 'exports', `${exportId}.pdf`)
-    
+
     // Ensure exports directory exists
     if (!fs.existsSync(path.dirname(filePath))) {
       fs.mkdirSync(path.dirname(filePath), { recursive: true })
@@ -350,7 +384,11 @@ export class DataExportService {
     // Date range
     if (data.dateRange) {
       doc.setFontSize(12)
-      doc.text(`Date Range: ${data.dateRange.start.toDateString()} - ${data.dateRange.end.toDateString()}`, 20, yPosition)
+      doc.text(
+        `Date Range: ${data.dateRange.start.toDateString()} - ${data.dateRange.end.toDateString()}`,
+        20,
+        yPosition
+      )
       yPosition += 20
     }
 
@@ -364,7 +402,10 @@ export class DataExportService {
       const { userMetrics, groupMetrics, financialMetrics } = data.metrics
 
       // User metrics table
-      const userMetricsData = Object.entries(userMetrics).map(([key, value]) => [key, String(value)])
+      const userMetricsData = Object.entries(userMetrics).map(([key, value]) => [
+        key,
+        String(value),
+      ])
       ;(doc as any).autoTable({
         head: [['User Metric', 'Value']],
         body: userMetricsData,
@@ -373,7 +414,10 @@ export class DataExportService {
       yPosition += (userMetricsData.length + 1) * 10 + 10
 
       // Group metrics table
-      const groupMetricsData = Object.entries(groupMetrics).map(([key, value]) => [key, String(value)])
+      const groupMetricsData = Object.entries(groupMetrics).map(([key, value]) => [
+        key,
+        String(value),
+      ])
       ;(doc as any).autoTable({
         head: [['Group Metric', 'Value']],
         body: groupMetricsData,
@@ -382,7 +426,10 @@ export class DataExportService {
       yPosition += (groupMetricsData.length + 1) * 10 + 10
 
       // Financial metrics table
-      const financialMetricsData = Object.entries(financialMetrics).map(([key, value]) => [key, String(value)])
+      const financialMetricsData = Object.entries(financialMetrics).map(([key, value]) => [
+        key,
+        String(value),
+      ])
       ;(doc as any).autoTable({
         head: [['Financial Metric', 'Value']],
         body: financialMetricsData,
@@ -403,7 +450,8 @@ export class DataExportService {
       doc.text('Predictions', 20, yPosition)
       yPosition += 15
 
-      const { churnPrediction, groupSuccessPrediction, optimalContributionAmount } = data.predictions
+      const { churnPrediction, groupSuccessPrediction, optimalContributionAmount } =
+        data.predictions
 
       // Churn predictions
       doc.setFontSize(12)
@@ -437,9 +485,19 @@ export class DataExportService {
       yPosition += 10
 
       doc.setFontSize(10)
-      doc.text(`Recommended: $${optimalContributionAmount.recommendedAmount} (${(optimalContributionAmount.confidence * 100).toFixed(0)}% confidence)`, 30, yPosition)
+      doc.text(
+        `Recommended: $${optimalContributionAmount.recommendedAmount} (${(
+          optimalContributionAmount.confidence * 100
+        ).toFixed(0)}% confidence)`,
+        30,
+        yPosition
+      )
       yPosition += 8
-      doc.text(`Range: $${optimalContributionAmount.minAmount} - $${optimalContributionAmount.maxAmount}`, 30, yPosition)
+      doc.text(
+        `Range: $${optimalContributionAmount.minAmount} - $${optimalContributionAmount.maxAmount}`,
+        30,
+        yPosition
+      )
       yPosition += 20
     }
 
@@ -466,6 +524,12 @@ export class DataExportService {
     })
   }
 
+  /**
+   * Deletes an export record and attempts to remove the physical file from disk.
+   * 
+   * @param exportId - Unique ID of the export to delete
+   * @returns Promise resolving to the deleted record
+   */
   async deleteExport(exportId: string) {
     const exportRecord = await prisma.dataExport.findUnique({
       where: { id: exportId },
@@ -486,13 +550,16 @@ export class DataExportService {
   }
 
   // Scheduled reports
-  async scheduleReport(userId: string, schedule: {
-    frequency: 'daily' | 'weekly' | 'monthly'
-    format: 'csv' | 'excel' | 'pdf'
-    includeMetrics: boolean
-    includePredictions: boolean
-    email?: string
-  }) {
+  async scheduleReport(
+    userId: string,
+    schedule: {
+      frequency: 'daily' | 'weekly' | 'monthly'
+      format: 'csv' | 'excel' | 'pdf'
+      includeMetrics: boolean
+      includePredictions: boolean
+      email?: string
+    }
+  ) {
     // This would integrate with a job scheduler like node-cron
     // For now, we'll just create a record in the database
     logger.info('Report scheduled', { userId, schedule })

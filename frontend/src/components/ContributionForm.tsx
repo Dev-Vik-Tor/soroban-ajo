@@ -1,7 +1,9 @@
-// Issue #24: Implement contribution form
-// Complexity: Trivial (100 pts)
-// Status: Implemented with comprehensive validation
-// Issue #222: Added TransactionPreview modal, gas estimation, and live wallet balance
+/**
+ * @file ContributionForm.tsx
+ * @description A specialized form for members to contribute funds to a savings group.
+ * Features live wallet balance tracking, transaction simulation, and a multi-step
+ * confirmation process with fee estimation.
+ */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { TransactionPreview, TxPreviewData } from './TransactionPreview'
@@ -12,15 +14,33 @@ import { ValidationError, ContributionValidation } from '../types'
 import { useContribute } from '../hooks/useContractData'
 import { useFormDraft } from '../hooks/useFormDraft'
 
+/**
+ * Properties for the ContributionForm component.
+ */
 interface ContributionFormProps {
+  /** The unique identifier of the target savings group */
   groupId: string
+  /** The required contribution amount for the current cycle */
   contributionAmount: number
+  /** Fallback user balance if wallet data is unavailable */
   userBalance?: number
+  /** The wallet address of the user (deprecated, use address from context) */
   userAddress?: string
+  /** List of previous contributions made by the user to this group */
   existingContributions?: Array<{ date: string; amount: number }>
+  /** Human-readable name of the group for display in previews */
   groupName?: string
 }
 
+/**
+ * A form component for facilitating group contributions.
+ * Implements a "Double Confirmation" pattern:
+ * 1. User inputs amount and clicks "Contribute"
+ * 2. System runs a dry-run simulation to estimate fees and verify feasibility
+ * 3. User reviews details in a preview modal and confirms for final signing
+ * 
+ * @param props - Component properties
+ */
 export const ContributionForm: React.FC<ContributionFormProps> = ({
   groupId,
   contributionAmount,
@@ -241,7 +261,12 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
         <h1 className="text-2xl font-bold mb-2">Make a Contribution</h1>
 
         {successMessage && (
-          <div className="mb-4 p-3 bg-green-100 text-green-800 rounded-lg text-sm flex items-center">
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="mb-4 p-3 bg-green-100 text-green-800 rounded-lg text-sm flex items-center"
+          >
             <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
@@ -321,14 +346,17 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
                 }`}
                 placeholder="0.00"
                 required
+                aria-required="true"
+                aria-invalid={hasError('amount')}
+                aria-describedby={`amount-helper${hasError('amount') ? ' amount-error' : ''}`}
               />
             </div>
 
             {hasError('amount') && (
-              <p className="mt-1 text-sm text-red-600">{getErrorByField('amount')}</p>
+              <p id="amount-error" className="mt-1 text-sm text-red-600" role="alert">{getErrorByField('amount')}</p>
             )}
 
-            <p className="mt-1 text-xs text-gray-600">
+            <p id="amount-helper" className="mt-1 text-xs text-gray-600">
               Required contribution: ${contributionAmount.toFixed(2)}
             </p>
           </div>

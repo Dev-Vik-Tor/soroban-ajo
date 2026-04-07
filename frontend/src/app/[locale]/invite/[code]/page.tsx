@@ -50,10 +50,16 @@ export default function InvitePage({ params }: PageProps) {
           id: code,
           groupId: parsed.groupId,
           groupName: 'Sample Savings Group',
+          contributionAmount: '100 XLM',
+          membersCount: 5,
           invitedBy: 'unknown',
+          recipientName: 'You',
           invitedAt: Date.now(),
           status: 'pending',
+          direction: 'received',
+          channel: 'link',
           inviteCode: code,
+          isRead: false,
         });
 
         setLoading(false);

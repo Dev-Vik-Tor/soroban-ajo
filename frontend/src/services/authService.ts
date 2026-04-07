@@ -1,22 +1,28 @@
 import type {
   AuthSession,
-  StoredSession,
+  AuthTokenResponse,
   SessionConfig,
-  TokenPair,
   StellarNetwork,
+  StoredSession,
+  TokenPair,
+  TwoFactorRequiredResponse,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
   WalletProvider,
   WalletSignatureResult,
 } from '../types/auth'
-import {
-  ensureFreighterAllowed,
-  getStellarNetworkFromFreighter,
-  waitForFreighterApi,
-} from '@/utils/freighter'
 import {
   connectLobstrVault,
   isMobileDevice,
   isValidStellarAddress as validateLobstrAddress,
 } from '@/utils/lobstr'
+import {
+  ensureFreighterAllowed,
+  getStellarNetworkFromFreighter,
+  waitForFreighterApi,
+} from '@/utils/freighter'
+import { ApiError, backendApiClient } from '@/lib/apiClient'
+import { apiPaths } from '@/lib/apiEndpoints'
 
 const DEFAULT_CONFIG: SessionConfig = {
   sessionDuration: 30 * 60 * 1000,
@@ -25,6 +31,8 @@ const DEFAULT_CONFIG: SessionConfig = {
   checkInterval: 60 * 1000,
   storagePrefix: 'ajo_auth',
 }
+
+type AuthTokenResult = AuthTokenResponse | TwoFactorRequiredResponse
 
 /**
  * Generates a cryptographically random string for use as tokens.
@@ -288,6 +296,7 @@ class AuthService {
     tokens: TokenPair,
     rememberMe: boolean,
     provider: WalletProvider,
+    twoFactorEnabled = false,
   ): AuthSession {
     return {
       address: walletResult.address,
@@ -298,6 +307,130 @@ class AuthService {
       token: tokens.token,
       refreshToken: tokens.refreshToken,
       rememberMe,
+      twoFactorEnabled,
+    }
+  }
+
+  /**
+   * Requests a backend authentication token using a public key and optional TOTP.
+   * 
+   * @param params - Request parameters
+   * @param params.publicKey - User's Stellar public key
+   * @param params.pendingToken - Optional token if 2FA is required
+   * @param params.totpCode - Optional 2FA code
+   * @returns AuthTokenResponse or TwoFactorRequiredResponse
+   * @throws {AuthError} If the API request fails
+   */
+  async requestBackendToken(params: {
+    publicKey: string
+    pendingToken?: string
+    totpCode?: string
+  }): Promise<AuthTokenResult> {
+    try {
+      const data = await backendApiClient.request<
+        AuthTokenResponse | TwoFactorRequiredResponse
+      >({
+        path: apiPaths.auth.token,
+        method: 'POST',
+        body: params,
+        auth: 'none',
+      })
+      if ('requiresTwoFactor' in data && data.requiresTwoFactor) {
+        return data as TwoFactorRequiredResponse
+      }
+      return data as AuthTokenResponse
+    } catch (e) {
+      if (e instanceof ApiError) {
+        throw new AuthError(String(e.message), 'AUTH_API_ERROR')
+      }
+      throw e
+    }
+  }
+
+  /**
+   * Get the current 2FA status for a user.
+   * 
+   * @param token - Bearer token for authentication
+   * @returns 2FA status response
+   * @throws {AuthError} If the API request fails
+   */
+  async getTwoFactorStatus(token: string): Promise<TwoFactorStatusResponse> {
+    try {
+      return await backendApiClient.request<TwoFactorStatusResponse>({
+        path: apiPaths.auth.twoFactorStatus,
+        bearerToken: token,
+      })
+    } catch (e) {
+      if (e instanceof ApiError) {
+        throw new AuthError(String(e.message), 'AUTH_API_ERROR')
+      }
+      throw e
+    }
+  }
+
+  /**
+   * Initialize 2FA setup by generating a secret and QR code.
+   * 
+   * @param token - Bearer token for authentication
+   * @returns 2FA setup response (secret, QR)
+   * @throws {AuthError} If the API request fails
+   */
+  async setupTwoFactor(token: string): Promise<TwoFactorSetupResponse> {
+    try {
+      return await backendApiClient.request<TwoFactorSetupResponse>({
+        path: apiPaths.auth.twoFactorSetup,
+        method: 'POST',
+        bearerToken: token,
+      })
+    } catch (e) {
+      if (e instanceof ApiError) {
+        throw new AuthError(String(e.message), 'AUTH_API_ERROR')
+      }
+      throw e
+    }
+  }
+
+  /**
+   * Enable 2FA for the account after verification.
+   * 
+   * @param token - Bearer token
+   * @param totpCode - Verification code from authenticator app
+   */
+  async enableTwoFactor(token: string, totpCode: string): Promise<{ success: boolean; enabled: boolean }> {
+    try {
+      return await backendApiClient.request<{ success: boolean; enabled: boolean }>({
+        path: apiPaths.auth.twoFactorEnable,
+        method: 'POST',
+        bearerToken: token,
+        body: { totpCode },
+      })
+    } catch (e) {
+      if (e instanceof ApiError) {
+        throw new AuthError(String(e.message), 'AUTH_API_ERROR')
+      }
+      throw e
+    }
+  }
+
+  /**
+   * Disable 2FA for the account.
+   * 
+   * @param token - Bearer token
+   * @param totpCode - Verification code from authenticator app
+   */
+  async disableTwoFactor(token: string, totpCode: string): Promise<{ success: boolean; enabled: boolean }> {
+    try {
+      return await backendApiClient.request<{ success: boolean; enabled: boolean }>({
+        path: apiPaths.auth.twoFactorDisable,
+        method: 'POST',
+        bearerToken: token,
+        body: { totpCode },
+      })
+    } catch (e) {
+      if (e instanceof ApiError) {
+        throw new AuthError(String(e.message), 'AUTH_API_ERROR')
+      }
+      throw e
     }
   }
 
@@ -321,6 +454,7 @@ class AuthService {
     localStorage.setItem(this.storageKey('address'), session.address)
     localStorage.setItem(this.storageKey('token_hint'), session.token.slice(0, 8))
     localStorage.setItem(this.storageKey('storage_type'), session.rememberMe ? 'local' : 'session')
+    localStorage.setItem('token', session.token)
 
     // Track active devices
     this.registerDevice(session.address, getDeviceId())
@@ -411,6 +545,7 @@ class AuthService {
       localStorage.removeItem(this.storageKey(key))
       sessionStorage.removeItem(this.storageKey(key))
     }
+    localStorage.removeItem('token')
   }
 
   /** Registers a device ID against an address for multi-device tracking */

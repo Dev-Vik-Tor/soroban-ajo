@@ -1,3 +1,7 @@
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 // `next-pwa` is only needed for production builds. In dev it's disabled and
 // missing devDependencies should not prevent `next dev` from starting.
 const withPWA =
@@ -7,6 +11,8 @@ const withPWA =
         dest: 'public',
         register: true,
         skipWaiting: true,
+        customWorkerDir: 'public',
+        customWorkerSrc: 'sw-custom.js',
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
@@ -173,4 +179,4 @@ const nextConfig = {
   },
 }
 
-module.exports = withPWA(withNextIntl(nextConfig))
+module.exports = withBundleAnalyzer(withPWA(withNextIntl(nextConfig)))

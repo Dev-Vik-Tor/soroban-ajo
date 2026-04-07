@@ -8,6 +8,8 @@ import {
 } from '../types/wallet';
 import { getStellarNetworkFromFreighter, waitForFreighterApi } from '../utils/freighter';
 
+export type WalletConnectionState = 'idle' | 'connecting' | 'success' | 'error';
+
 const STORAGE_KEY = 'soroban_ajo_wallet';
 
 const initialState: WalletState = {
@@ -18,10 +20,17 @@ const initialState: WalletState = {
     publicKey: null,
 };
 
+/**
+ * Comprehensive hook for managing multiple wallet connections.
+ * Supports Freighter, Albedo, and Lobstr Vault.
+ * 
+ * @returns Wallet state, connection actions, and available providers
+ */
 export const useWallet = () => {
     const [walletState, setWalletState] = useState<WalletState>(initialState);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<WalletError | null>(null);
+    const [connectionState, setConnectionState] = useState<WalletConnectionState>('idle');
 
     // Check if wallets are installed
     const detectWallets = useCallback((): WalletInfo[] => {
@@ -68,7 +77,12 @@ export const useWallet = () => {
         }
     }, []);
 
-    // Connect to Freighter wallet
+    /**
+     * Connect to the Freighter browser extension.
+     * 
+     * @param requestedNetwork - Optional network override
+     * @returns Connection result
+     */
     const connectFreighter = useCallback(
         async (requestedNetwork?: WalletState['network']): Promise<WalletConnectionResult> => {
             // By the time a user clicks "connect", Freighter should be injected already.
@@ -226,11 +240,17 @@ export const useWallet = () => {
         [saveWalletState]
     );
 
-    // Main connect function
+    /**
+     * unified connect function that delegates to the appropriate provider.
+     * 
+     * @param params - Provider type and target network
+     * @returns Connection result
+     */
     const connect = useCallback(
         async ({ walletType, network = 'testnet' }: ConnectWalletParams): Promise<WalletConnectionResult> => {
             setIsLoading(true);
             setError(null);
+            setConnectionState('connecting');
 
             let result: WalletConnectionResult;
 
@@ -252,6 +272,9 @@ export const useWallet = () => {
 
             if (!result.success && result.error) {
                 setError(result.error);
+                setConnectionState('error');
+            } else {
+                setConnectionState('success');
             }
 
             setIsLoading(false);
@@ -260,10 +283,13 @@ export const useWallet = () => {
         [connectFreighter, connectAlbedo, connectLobstr]
     );
 
-    // Disconnect wallet
+    /**
+     * Clear the current wallet connection state and storage.
+     */
     const disconnect = useCallback(() => {
         setWalletState(initialState);
         setError(null);
+        setConnectionState('idle');
         localStorage.removeItem(STORAGE_KEY);
     }, []);
 
@@ -275,6 +301,7 @@ export const useWallet = () => {
         walletState,
         isLoading,
         error,
+        connectionState,
         availableWallets,
 
         // Actions

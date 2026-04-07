@@ -1,20 +1,38 @@
+/**
+ * @file GroupsList.tsx
+ * @description A tabular list component for displaying savings groups with high data density.
+ * Provides a professional table view with sorting (implicit), filtering (via parent), and direct actions.
+ */
+
 import { Group } from '@/types'
 import React from 'react'
 
+/**
+ * Props for the GroupsList component.
+ */
 interface GroupsListProps {
+  /** Collection of group data to be displayed in rows */
   groups?: Group[]
+  /** If true, renders a set of animated skeleton rows */
   isLoading?: boolean
+  /** Callback fired when a row is clicked (excluding action buttons) */
   onGroupClick?: (groupId: string) => void
+  /** Callback fired specifically when the 'Join' button is clicked */
   onJoinGroup?: (groupId: string) => void
 }
 
+/**
+ * A feature-rich table component for browsing savings groups.
+ * Optimized for larger screens where a grid might be less efficient for scanning large amounts of data.
+ * Includes visual status indicators, progress bars for membership, and interactive rows.
+ */
 export const GroupsList: React.FC<GroupsListProps> = ({
   groups = [],
   isLoading = false,
   onGroupClick,
   onJoinGroup,
 }) => {
-  const list = groups;
+  const list = groups
 
   const statusConfig: Record<string, { badge: string; dot: string; label: string }> = {
     active: {
@@ -36,38 +54,44 @@ export const GroupsList: React.FC<GroupsListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700 overflow-hidden">
+      <div
+        className="bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700 overflow-hidden"
+        aria-busy="true"
+        aria-label="Loading groups"
+      >
         <table className="table-premium">
           <thead>
             <tr>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 dark:text-slate-400 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
-                Members
-              </th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
-                Contributions
-              </th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
-                Next Payout
-              </th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
-                Actions
-              </th>
+              {['Name', 'Members', 'Contributions', 'Next Payout', 'Status', 'Actions'].map(
+                (col) => (
+                  <th
+                    key={col}
+                    className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 dark:text-slate-400 uppercase tracking-wider"
+                  >
+                    {col}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody>
             {[...Array(5)].map((_, i) => (
-              <tr key={i} className="animate-pulse-soft" style={{ animationDelay: `${i * 100}ms` }}>
+              <tr
+                key={i}
+                className="relative overflow-hidden"
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
                 <td className="px-5 py-4">
-                  <div className="skeleton h-4 w-32 rounded-md" />
+                  <div className="space-y-1.5">
+                    <div className="skeleton h-4 w-32 rounded-md" />
+                    <div className="skeleton h-3 w-20 rounded-md" />
+                  </div>
                 </td>
                 <td className="px-5 py-4">
-                  <div className="skeleton h-4 w-16 rounded-md" />
+                  <div className="flex items-center gap-2">
+                    <div className="skeleton h-4 w-10 rounded-md" />
+                    <div className="skeleton h-1.5 w-12 rounded-full" />
+                  </div>
                 </td>
                 <td className="px-5 py-4">
                   <div className="skeleton h-4 w-20 rounded-md" />
@@ -114,8 +138,16 @@ export const GroupsList: React.FC<GroupsListProps> = ({
                 Next Payout
               </div>
             </th>
-            <th><div className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">Status</div></th>
-            <th><div className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">Actions</div></th>
+            <th>
+              <div className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
+                Status
+              </div>
+            </th>
+            <th>
+              <div className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
+                Actions
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>

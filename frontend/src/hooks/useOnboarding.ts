@@ -14,10 +14,17 @@ interface OnboardingState {
   skipOnboarding: () => void;
   completeOnboarding: () => void;
   replayTutorial: () => void;
+  startOnboardingIfNew: () => void;
   nextStep: () => void;
   prevStep: () => void;
 }
 
+/**
+ * Zustand store hook for managing the app onboarding flow.
+ * Tracks whether the user has completed onboarding and the current step in the process.
+ * 
+ * @returns Object with onboarding state and control methods (next, prev, skip, complete)
+ */
 export const useOnboarding = create<OnboardingState>()(
   persist(
     (set) => ({
@@ -57,6 +64,13 @@ export const useOnboarding = create<OnboardingState>()(
           isOnboardingActive: true,
           isTourActive: true,
           currentStep: 0,
+        }),
+
+      // Call on app mount — only activates if user hasn't completed onboarding yet
+      startOnboardingIfNew: () =>
+        set((state) => {
+          if (state.hasCompletedOnboarding) return {};
+          return { isOnboardingActive: true, currentStep: 0 };
         }),
 
       nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
