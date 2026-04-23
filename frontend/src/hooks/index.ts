@@ -2,6 +2,9 @@
  * Central entry point for all custom React hooks.
  * Exports hooks for state management, blockchain interaction, and UI utilities.
  */
+export { useOfflineMode } from './useOfflineMode'
+export type { UseOfflineModeReturn } from './useOfflineMode'
+export { useOfflineContext, OfflineProvider } from '@/context/OfflineContext'
 export { useTableState } from './useTableState'
 export type { TableFilters, UseTableStateOptions, UseTableStateReturn } from './useTableState'
 export { useSkeletonDelay } from './useSkeletonDelay'

@@ -2,6 +2,7 @@
 
 import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
+import { OfflineProvider } from '@/context/OfflineContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
@@ -51,9 +52,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <OnboardingInitializer />
-          {children}
-          <Toaster position="top-right" />
+          <OfflineProvider>
+            <OnboardingInitializer />
+            {children}
+            <Toaster position="top-right" />
+          </OfflineProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

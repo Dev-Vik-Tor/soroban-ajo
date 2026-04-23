@@ -1,50 +1,43 @@
-import { useState, useEffect } from 'react';
-import { queueAction, syncPendingActions } from '../utils/syncManager';
+import { useOfflineContext } from '@/context/OfflineContext';
+import type { Group } from '@/types';
 
 interface Action {
-  id: string;
   type: string;
   payload: any;
-  timestamp: number;
 }
 
-export function useOfflineMode() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [pendingActions, setPendingActions] = useState<Action[]>([]);
+export interface UseOfflineModeReturn {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingCount: number;
+  cachedGroups: Group[];
+  cachedDashboard: Record<string, unknown> | null;
+  queueAction: (action: Action) => Promise<void>;
+  refreshCache: () => Promise<void>;
+}
 
-  useEffect(() => {
-    const handleOnline = async () => {
-      setIsOnline(true);
-      await syncPendingActions();
-      // Refresh pending actions list
-      setPendingActions([]);
-    };
+/**
+ * Convenience hook for offline mode state and actions.
+ * Delegates to OfflineContext — must be used inside OfflineProvider.
+ */
+export function useOfflineMode(): UseOfflineModeReturn {
+  const {
+    isOnline,
+    isSyncing,
+    pendingCount,
+    cachedGroups,
+    cachedDashboard,
+    addPendingAction,
+    refreshCache,
+  } = useOfflineContext();
 
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  const addPendingAction = (action: Omit<Action, 'id' | 'timestamp'>) => {
-    const fullAction: Action = {
-      ...action,
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-    };
-
-    if (!isOnline) {
-      queueAction(fullAction);
-      setPendingActions(prev => [...prev, fullAction]);
-    }
+  return {
+    isOnline,
+    isSyncing,
+    pendingCount,
+    cachedGroups,
+    cachedDashboard,
+    queueAction: addPendingAction,
+    refreshCache,
   };
-
-  return { isOnline, pendingActions, queueAction: addPendingAction };
 }
