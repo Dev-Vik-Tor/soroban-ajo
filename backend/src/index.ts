@@ -65,6 +65,10 @@ app.use('/api/members', membersRouter)
 import { disputesRouter } from './routes/disputes'
 app.use('/api/disputes', disputesRouter)
 
+// Templates
+import { templatesRouter } from './routes/templates'
+app.use('/api/templates', templatesRouter)
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({

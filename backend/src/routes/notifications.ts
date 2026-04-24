@@ -1,6 +1,8 @@
 import { Router, Response } from 'express'
+import { z } from 'zod'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { notificationService } from '../services/notificationService'
+import { getReminderPreferences, upsertReminderPreferences } from '../services/reminderService'
 import { prisma } from '../config/database'
 import { logger } from '../utils/logger'
 import webpush from 'web-push'
@@ -86,45 +88,47 @@ notificationsRouter.get('/status', (req: AuthRequest, res: Response) => {
   })
 })
 
+// ── Reminder preferences ──────────────────────────────────────────────────
+
+const prefsSchema = z.object({
+  channels: z.array(z.enum(['email', 'push', 'sms'])).optional(),
+  contributionReminderHours: z.number().int().min(1).max(168).optional(),
+  payoutReminderHours: z.number().int().min(1).max(48).optional(),
+  enabled: z.boolean().optional(),
+  phoneNumber: z.string().optional(),
+  email: z.string().email().optional(),
+})
+
 /**
- * POST /api/notifications/push/subscribe
- * Saves a Web Push subscription for the authenticated user.
+ * GET /api/notifications/reminders/preferences
+ * Returns the authenticated user's reminder preferences.
  */
-notificationsRouter.post('/push/subscribe', async (req: AuthRequest, res: Response) => {
+notificationsRouter.get('/reminders/preferences', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.walletAddress!
-    const subscription = req.body as { endpoint: string; keys: { p256dh: string; auth: string } }
-
-    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
-      return res.status(400).json({ success: false, error: 'Invalid push subscription' })
-    }
-
-    await prisma.pushSubscription.upsert({
-      where: { endpoint: subscription.endpoint },
-      create: { userId, endpoint: subscription.endpoint, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
-      update: { userId, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
-    })
-
-    res.json({ success: true })
+    const prefs = await getReminderPreferences(userId)
+    res.json({ success: true, data: prefs })
   } catch (err) {
-    logger.error('Error saving push subscription:', err)
-    res.status(500).json({ success: false, error: 'Failed to save subscription' })
+    logger.error('Error fetching reminder preferences:', err)
+    res.status(500).json({ success: false, error: 'Failed to fetch preferences' })
   }
 })
 
 /**
- * DELETE /api/notifications/push/subscribe
- * Removes a Web Push subscription for the authenticated user.
+ * PUT /api/notifications/reminders/preferences
+ * Creates or updates the authenticated user's reminder preferences.
  */
-notificationsRouter.delete('/push/subscribe', async (req: AuthRequest, res: Response) => {
+notificationsRouter.put('/reminders/preferences', async (req: AuthRequest, res: Response) => {
   try {
-    const { endpoint } = req.body as { endpoint: string }
-    if (!endpoint) return res.status(400).json({ success: false, error: 'endpoint required' })
-
-    await prisma.pushSubscription.deleteMany({ where: { endpoint } })
-    res.json({ success: true })
+    const userId = req.user!.walletAddress!
+    const parsed = prefsSchema.parse(req.body)
+    const prefs = await upsertReminderPreferences(userId, parsed)
+    res.json({ success: true, data: prefs })
   } catch (err) {
-    logger.error('Error removing push subscription:', err)
-    res.status(500).json({ success: false, error: 'Failed to remove subscription' })
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Invalid preferences', details: err.errors })
+    }
+    logger.error('Error updating reminder preferences:', err)
+    res.status(500).json({ success: false, error: 'Failed to update preferences' })
   }
 })

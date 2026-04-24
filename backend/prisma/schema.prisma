@@ -15,6 +15,14 @@ model User {
   twoFactorEnabled   Boolean   @default(false)
   twoFactorSecret    String?
   twoFactorEnabledAt DateTime?
+  // 2FA method: totp | sms | null
+  twoFactorMethod    String?
+  // SMS 2FA
+  phoneNumber        String?
+  smsOtpHash         String?
+  smsOtpExpiresAt    DateTime?
+  // Backup codes (JSON array of hashed codes)
+  backupCodes        String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -46,6 +54,7 @@ model User {
   rewards            Reward[]           @relation("UserRewards")
   fraudFlags         FraudFlag[]        @relation("UserFraudFlags")
   leaderboardEntries LeaderboardCache[] @relation("LeaderboardEntries")
+  reminderPreferences ReminderPreferences?
 
   @@index([walletAddress])
 }
@@ -96,11 +105,12 @@ model Group {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  members        GroupMember[]
-  contributions  Contribution[]
-  metrics        GroupMetrics?
-  multiSigConfig MultiSigConfig?
-  chatRoom       ChatRoom?
+  members              GroupMember[]
+  contributions        Contribution[]
+  metrics              GroupMetrics?
+  multiSigConfig       MultiSigConfig?
+  chatRoom             ChatRoom?
+  contributionSchedule ContributionSchedule?
 
   @@index([isActive, createdAt(sort: Desc)])
   @@index([name])
@@ -654,6 +664,43 @@ model ChatParticipant {
   @@index([userId])
 }
 
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String   // wallet address or system identifier
+  actorType  String   @default("USER") // USER, ADMIN, SYSTEM
+  action     String   // e.g. GROUP_CREATED, MEMBER_REMOVED, PAYOUT_TRIGGERED
+  targetType String?  // e.g. Group, User, Contribution
+  targetId   String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model BackupRecord {
+  id            String    @id @default(cuid())
+  backupType    String    // FULL, WAL
+  status        String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED, VERIFIED
+  storagePath   String
+  sizeBytes     BigInt?
+  checksum      String?
+  encryptionKey String?   // Key ID reference (never the actual key)
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  verifiedAt    DateTime?
+  errorMessage  String?
+  metadata      Json?     // postgres_version, start_lsn, end_lsn, etc.
+
+  @@index([backupType, status])
+  @@index([startedAt(sort: Desc)])
+  @@index([status])
+}
+
 model EventStore {
   id            String   @id @default(cuid())
   sequenceNumber Int     @default(autoincrement())
@@ -670,81 +717,53 @@ model EventStore {
   @@index([sequenceNumber])
 }
 
-model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
+// ─── Contribution Schedule ────────────────────────────────────────────────────
 
-  user User @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-// ── Advanced Search (Issue #597) ──────────────────────────────────────────
-
-model SavedSearch {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  entity    String   // groups | members | transactions
-  filters   Json     // serialised SearchFilters
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-// ── Member Verification (Issue #589) ──────────────────────────────────────
-
-model Verification {
+/// Frequency type for a group's contribution schedule.
+/// CUSTOM means the admin supplies an explicit intervalDays value.
+model ContributionSchedule {
   id              String    @id @default(cuid())
-  userId          String    @unique
-  // KYC level: 0=none, 1=email, 2=phone+email, 3=identity docs
-  kycLevel        Int       @default(0)
-  kycStatus       String    @default("none") // none | pending | approved | rejected
-  kycRequestedAt  DateTime?
-  kycVerifiedAt   DateTime?
-  kycRejectedAt   DateTime?
-  kycNotes        String?
-  // Email verification
-  emailVerified   Boolean   @default(false)
-  emailOtp        String?
-  emailOtpExpiry  DateTime?
-  // Phone verification
-  phone           String?
-  phoneVerified   Boolean   @default(false)
-  phoneOtp        String?
-  phoneOtpExpiry  DateTime?
-  // Trust score (0-100)
-  trustScore      Int       @default(0)
-  trustUpdatedAt  DateTime  @default(now())
+  groupId         String    @unique
+  /// WEEKLY | BI_WEEKLY | MONTHLY | CUSTOM
+  frequency       String
+  /// Only required when frequency = CUSTOM
+  intervalDays    Int?
+  /// Hours after the due date before a member is considered late
+  gracePeriodHours Int      @default(24)
+  /// How many hours the payment window stays open (0 = no hard close)
+  paymentWindowHours Int    @default(72)
+  /// Anchor date — the first contribution was/is due on this date
+  startDate       DateTime
+  /// Next computed due date (denormalised for fast queries)
+  nextDueDate     DateTime
+  /// Whether the schedule is currently active
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  group           Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  windows         PaymentWindow[]
 
-  user      User              @relation(fields: [userId], references: [walletAddress], onDelete: Cascade)
-  documents VerificationDoc[]
-
-  @@index([kycStatus])
-  @@index([trustScore])
+  @@index([nextDueDate])
+  @@index([isActive, nextDueDate])
 }
 
-model VerificationDoc {
-  id             String   @id @default(cuid())
-  verificationId String
-  docType        String   // passport | national_id | drivers_license | utility_bill | selfie
-  fileName       String
-  mimeType       String
-  sizeBytes      Int
-  storageKey     String   // S3 key or local path
-  status         String   @default("pending") // pending | approved | rejected
-  createdAt      DateTime @default(now())
+/// Tracks each individual payment window opened for a schedule cycle.
+model PaymentWindow {
+  id           String    @id @default(cuid())
+  scheduleId   String
+  cycleNumber  Int
+  opensAt      DateTime
+  dueAt        DateTime
+  closesAt     DateTime?
+  status       String    @default("OPEN") // OPEN | CLOSED | GRACE | MISSED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  verification Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  schedule     ContributionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
-  @@index([verificationId])
+  @@unique([scheduleId, cycleNumber])
+  @@index([scheduleId, status])
+  @@index([dueAt])
+  @@index([closesAt])
 }
