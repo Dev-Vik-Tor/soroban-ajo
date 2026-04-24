@@ -5,8 +5,18 @@ import { notificationService } from '../services/notificationService'
 import { getReminderPreferences, upsertReminderPreferences } from '../services/reminderService'
 import { prisma } from '../config/database'
 import { logger } from '../utils/logger'
+import webpush from 'web-push'
 
 export const notificationsRouter = Router()
+
+// Configure VAPID keys if provided
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    `mailto:${process.env.EMAIL_FROM || 'noreply@ajo.app'}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+}
 
 // All routes require authentication
 notificationsRouter.use(authMiddleware)
